@@ -1,5 +1,9 @@
 from zigpy.profiles import zha
-from zigpy.quirks import CustomDevice
+from zigpy.quirks import (
+    CustomDevice,
+    CustomCluster
+)
+import zigpy.types as t
 from zigpy.zcl.clusters.general import (
     Basic,
     Identify,
@@ -7,7 +11,6 @@ from zigpy.zcl.clusters.general import (
 )
 from zigpy.zcl.clusters.measurement import OccupancySensing
 from zigpy.zcl.clusters.security import IasZone
-from zigpy.zcl.clusters.manufacturer_specific import ManufacturerSpecificCluster
 from zhaquirks.const import (
     DEVICE_TYPE,
     ENDPOINTS,
@@ -17,18 +20,46 @@ from zhaquirks.const import (
     PROFILE_ID,
 )
 
-SONOFF_CLUSTER_1_ID = 0xFC11
-SONOFF_CLUSTER_2_ID = 0xFC57
+SONOFF_CLUSTER_FC11_ID = 0xFC11
+SONOFF_CLUSTER_FC57_ID = 0xFC57
+ATTR_SONOFF_ILLUMINATION_STATUS = 0x2001
+
+class IlluminationStatus(t.enum8):
+    """Last measureed state of illumination enum."""
+
+    Dark = 0x00
+    Light = 0x01
+
+class SonoffFC11Cluster(CustomCluster):
+    """Sonoff manufacture specific cluster that provides illuminance"""
+
+    name = "Sonoff Manufacture Specific Cluster at 0xFC11"
+    cluster_id = SONOFF_CLUSTER_FC11_ID
+    ep_attribute = "sonoff_manufacturer_specific_FC11"
+    attributes = {ATTR_SONOFF_ILLUMINATION_STATUS: ("last_illumination_state", IlluminationStatus)}
+
+
+class SensitivityState(t.enum8):
+    """Sonoff sensitivity state enum."""
+
+    Low = 1
+    Medium = 2
+    High = 3
+
+class SonoffOccopancyAttributeCluster(OccupancySensing):
+    attributes = OccupancySensing.attributes.copy()
+    attributes.update({0x0022: ("ultrasonic_u_to_o_threshold", SensitivityState)})
+
 
 
 class SonoffPresenceSenorSNZB06P(CustomDevice):
     """Sonoff human presence senor - model SNZB-06P"""
 
     signature = {
-        # SimpleDescriptor(endpoint=1, profile=260, device_type=263
+        # <SimpleDescriptor endpoint=1, profile=260, device_type=263
         # device_version=1
         # input_clusters=[0, 3, 1030, 1280, 64599, 64529]
-        # output_clusters=[3, 25])
+        # output_clusters=[3, 25]>
         MODELS_INFO: [
             ("SONOFF", "SNZB-06P"),
         ],
@@ -41,8 +72,8 @@ class SonoffPresenceSenorSNZB06P(CustomDevice):
                     Identify.cluster_id,
                     OccupancySensing.cluster_id,
                     IasZone.cluster_id,
-                    SONOFF_CLUSTER_1_ID,
-                    SONOFF_CLUSTER_2_ID,
+                    SONOFF_CLUSTER_FC11_ID,
+                    SONOFF_CLUSTER_FC57_ID,
                 ],
                 OUTPUT_CLUSTERS: [
                     Identify.cluster_id,
@@ -60,9 +91,8 @@ class SonoffPresenceSenorSNZB06P(CustomDevice):
                     Basic.cluster_id,
                     Identify.cluster_id,
                     OccupancySensing.cluster_id,
-                    IasZone.cluster_id,
-                    SONOFF_CLUSTER_1_ID,
-                    SONOFF_CLUSTER_2_ID,
+                    SONOFF_CLUSTER_FC11_ID,
+                    SONOFF_CLUSTER_FC57_ID,
                 ],
                 OUTPUT_CLUSTERS: [
                     Identify.cluster_id,
